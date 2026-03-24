@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Egor — Чат</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <h1 class="logo">Egor</h1>
+        <button class="btn-new-chat" id="btnNewChat" title="Новый чат">+</button>
+      </div>
+
+      <div class="search-wrap">
+        <input type="text" class="search-input" id="searchInput" placeholder="Поиск чатов..." />
+      </div>
+
+      <ul class="chat-list" id="chatList"></ul>
+    </aside>
+
+    <!-- Main area -->
+    <main class="main">
+      <header class="chat-header" id="chatHeader">
+        <span class="chat-header-name" id="chatHeaderName">Выберите чат</span>
+        <div class="chat-header-actions">
+          <button class="btn-icon" id="btnRenameChat" title="Переименовать" style="display:none">✎</button>
+          <button class="btn-icon btn-danger" id="btnDeleteChat" title="Удалить чат" style="display:none">🗑</button>
+        </div>
+      </header>
+
+      <div class="messages-area" id="messagesArea">
+        <div class="empty-state" id="emptyState">
+          <div class="empty-icon">💬</div>
+          <p>Создайте новый чат или выберите существующий</p>
+        </div>
+      </div>
+
+      <form class="input-area" id="inputForm">
+        <textarea
+          class="message-input"
+          id="messageInput"
+          placeholder="Введите сообщение… (Enter — отправить, Shift+Enter — новая строка)"
+          rows="1"
+          disabled
+        ></textarea>
+        <button type="submit" class="btn-send" id="btnSend" disabled>Отправить</button>
+      </form>
+    </main>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
