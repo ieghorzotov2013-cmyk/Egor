@@ -21,9 +21,24 @@ import urllib.error
 BASE = "https://api.moysklad.ru/api/remap/1.2"
 STATUS_NAME = (sys.argv[1] if len(sys.argv) > 1 else "на разборе возвратов").strip().lower()
 
-TOKEN = os.environ.get("MS_TOKEN", "").strip()
-if not TOKEN:
-    sys.exit("Не задан токен. Сделайте: export MS_TOKEN='...' и запустите снова.")
+def load_token():
+    """Токен берём: 1) из переменной MS_TOKEN, 2) из файла ms_token.txt рядом со скриптом."""
+    t = os.environ.get("MS_TOKEN", "").strip()
+    if t:
+        return t
+    here = os.path.dirname(os.path.abspath(__file__))
+    token_file = os.path.join(here, "ms_token.txt")
+    if os.path.exists(token_file):
+        with open(token_file, "r", encoding="utf-8") as f:
+            return f.read().strip()
+    sys.exit(
+        "Не найден токен.\n"
+        "Вариант А: создайте рядом со скриптом файл ms_token.txt и впишите туда токен.\n"
+        "Вариант Б: задайте переменную окружения MS_TOKEN."
+    )
+
+
+TOKEN = load_token()
 
 
 def api_get(path):
