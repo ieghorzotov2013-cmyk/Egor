@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Егор</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --text: #e8eaf0;
+    --muted: #9aa1b0;
+    --accent: #5b8cff;
+    --border: #262b36;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1a1d24;
+      --muted: #5b6270;
+      --accent: #2f6bff;
+      --border: #e3e6ec;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 24px 20px 60px; }
+  header { padding: 48px 0 32px; text-align: center; }
+  h1 { font-size: 2rem; margin-bottom: 12px; }
+  .sub { color: var(--muted); font-size: 1.05rem; }
+  section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  h2 { font-size: 1.15rem; margin-bottom: 10px; color: var(--accent); }
+  .news-item { padding: 10px 0; border-bottom: 1px solid var(--border); }
+  .news-item:last-child { border-bottom: none; }
+  .news-date { font-size: 0.85rem; color: var(--muted); }
+  .contact a { color: var(--accent); text-decoration: none; word-break: break-all; }
+  .contact div { padding: 4px 0; }
+  footer { text-align: center; color: var(--muted); font-size: 0.85rem; padding-top: 24px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1 id="title">Егор</h1>
+    <p class="sub" id="subtitle"></p>
+  </header>
+
+  <section>
+    <h2>Обо мне</h2>
+    <p id="about"></p>
+  </section>
+
+  <section>
+    <h2>Новости</h2>
+    <div id="news"></div>
+  </section>
+
+  <section class="contact">
+    <h2>Контакты</h2>
+    <div id="contacts"></div>
+  </section>
+
+  <footer>Сайт Егора · обновляется с телефона</footer>
+</div>
+
+<script>
+fetch('content.json?v=' + Date.now())
+  .then(r => r.json())
+  .then(c => {
+    document.title = c['название_сайта'] || 'Егор';
+    document.getElementById('title').textContent = c['заголовок'] || '';
+    document.getElementById('subtitle').textContent = c['подзаголовок'] || '';
+    document.getElementById('about').textContent = c['о_себе'] || '';
+
+    const news = document.getElementById('news');
+    (c['новости'] || []).forEach(n => {
+      const d = document.createElement('div');
+      d.className = 'news-item';
+      d.innerHTML = '<div class="news-date"></div><div class="news-text"></div>';
+      d.querySelector('.news-date').textContent = n['дата'] || '';
+      d.querySelector('.news-text').textContent = n['текст'] || '';
+      news.appendChild(d);
+    });
+
+    const k = c['контакты'] || {};
+    const box = document.getElementById('contacts');
+    const add = (label, value, href) => {
+      if (!value) return;
+      const div = document.createElement('div');
+      const a = document.createElement('a');
+      a.href = href;
+      a.textContent = value;
+      div.append(label + ': ', a);
+      box.appendChild(div);
+    };
+    add('Почта', k['email'], 'mailto:' + k['email']);
+    add('Telegram', k['telegram'], 'https://t.me/' + String(k['telegram']).replace('@', ''));
+    add('Телефон', k['телефон'], 'tel:' + String(k['телефон']).replace(/\s/g, ''));
+  })
+  .catch(() => {
+    document.getElementById('about').textContent = 'Не удалось загрузить содержимое сайта.';
+  });
+</script>
+</body>
+</html>
