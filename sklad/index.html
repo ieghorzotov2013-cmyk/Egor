@@ -1,0 +1,620 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0f1115">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Сканер склада</title>
+<style>
+  :root {
+    --bg: #0f1115;
+    --card: #181b22;
+    --text: #e8eaf0;
+    --muted: #9aa1b0;
+    --accent: #5b8cff;
+    --ok: #2fbf71;
+    --danger: #ff5b5b;
+    --border: #262b36;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9;
+      --card: #ffffff;
+      --text: #1a1d24;
+      --muted: #5b6270;
+      --accent: #2f6bff;
+      --ok: #1a9c55;
+      --danger: #d93636;
+      --border: #e3e6ec;
+    }
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.4;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .wrap { max-width: 640px; margin: 0 auto; padding: 16px 16px 120px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0 14px; }
+  h1 { font-size: 1.35rem; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px;
+    margin-bottom: 12px;
+  }
+  label { display: block; font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+  input, select {
+    width: 100%;
+    font-size: 1rem;
+    padding: 11px 12px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--text);
+    outline: none;
+  }
+  input:focus { border-color: var(--accent); }
+  .row { display: flex; gap: 8px; align-items: flex-end; }
+  .row > .grow { flex: 1; min-width: 0; }
+  button {
+    font: inherit;
+    font-size: 0.95rem;
+    font-weight: 600;
+    border: 1px solid var(--border);
+    background: var(--card);
+    color: var(--text);
+    border-radius: 10px;
+    padding: 11px 14px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  button:active { transform: scale(0.97); }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  button.danger { color: var(--danger); }
+  button.small { padding: 6px 10px; font-size: 0.85rem; }
+  .big-scan { width: 100%; padding: 16px; font-size: 1.1rem; }
+
+  #reader { width: 100%; border-radius: 12px; overflow: hidden; background: #000; }
+  #reader video { width: 100% !important; display: block; }
+  #scanBox { display: none; }
+  #scanBox.on { display: block; }
+  .scan-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .scan-actions button { flex: 1; }
+
+  .last {
+    margin-top: 10px; padding: 10px 12px; border-radius: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    font-size: 0.95rem; display: none;
+  }
+  .last.on { display: block; }
+  .last.flash { border-color: var(--ok); }
+
+  .toggles { display: flex; gap: 14px; flex-wrap: wrap; margin-top: 10px; font-size: 0.9rem; color: var(--muted); }
+  .toggles label { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 0.9rem; }
+  .toggles input { width: auto; }
+
+  .stats { display: flex; gap: 8px; }
+  .stat { flex: 1; text-align: center; }
+  .stat b { display: block; font-size: 1.4rem; }
+  .stat span { font-size: 0.8rem; color: var(--muted); }
+
+  .loc-title { font-size: 0.8rem; text-transform: uppercase; letter-spacing: .04em; color: var(--accent); margin: 14px 2px 6px; }
+  .item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; border-radius: 12px;
+    background: var(--card); border: 1px solid var(--border); margin-bottom: 6px;
+  }
+  .item .info { flex: 1; min-width: 0; }
+  .item .name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .item .code { font-size: 0.8rem; color: var(--muted); font-family: ui-monospace, Menlo, monospace; word-break: break-all; }
+  .item .qty { display: flex; align-items: center; gap: 6px; }
+  .item .qty b { min-width: 34px; text-align: center; font-size: 1.1rem; }
+  .item .qty button { width: 36px; height: 36px; padding: 0; font-size: 1.2rem; }
+  .item.hl { border-color: var(--ok); }
+  .empty { text-align: center; color: var(--muted); padding: 30px 10px; }
+
+  .bottom {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--card); border-top: 1px solid var(--border);
+    padding: 10px 16px calc(10px + env(safe-area-inset-bottom));
+  }
+  .bottom .inner { max-width: 640px; margin: 0 auto; display: flex; gap: 8px; }
+  .bottom button { flex: 1; padding: 12px 6px; font-size: 0.9rem; }
+
+  dialog {
+    border: 1px solid var(--border); border-radius: 16px;
+    background: var(--card); color: var(--text);
+    padding: 16px; width: min(92vw, 420px); margin: auto;
+  }
+  dialog::backdrop { background: rgba(0,0,0,.55); }
+  dialog h3 { margin-bottom: 12px; }
+  dialog .field { margin-bottom: 10px; }
+  dialog .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; flex-wrap: wrap; }
+  .hint { font-size: 0.85rem; color: var(--muted); margin-top: 6px; }
+  .menu button { display: block; width: 100%; text-align: left; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>📦 Сканер склада</h1>
+    <button class="small" id="menuBtn">☰ Меню</button>
+  </header>
+
+  <div class="card">
+    <div class="row">
+      <div class="grow">
+        <label for="location">Ячейка / место хранения</label>
+        <input id="location" placeholder="Например: A-01-03" autocomplete="off">
+      </div>
+    </div>
+    <div class="hint">Все сканы записываются в эту ячейку. Можно отсканировать штрихкод ячейки — включите «Скан ячейки».</div>
+  </div>
+
+  <div class="card">
+    <button class="primary big-scan" id="scanBtn">📷 Сканировать камерой</button>
+    <div id="scanBox">
+      <div id="reader"></div>
+      <div class="scan-actions">
+        <button id="locScanBtn">Скан ячейки</button>
+        <button class="danger" id="stopBtn">Стоп</button>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div class="grow">
+        <label for="manual">Штрихкод вручную или ручным сканером</label>
+        <input id="manual" inputmode="text" placeholder="Введите код и нажмите Enter" autocomplete="off">
+      </div>
+      <button id="addManual">＋</button>
+    </div>
+
+    <div class="toggles">
+      <label><input type="checkbox" id="askQty"> Спрашивать количество</label>
+      <label><input type="checkbox" id="sound" checked> Звук</label>
+    </div>
+
+    <div class="last" id="last"></div>
+  </div>
+
+  <div class="card stats">
+    <div class="stat"><b id="sPos">0</b><span>позиций</span></div>
+    <div class="stat"><b id="sQty">0</b><span>штук всего</span></div>
+    <div class="stat"><b id="sLoc">0</b><span>ячеек</span></div>
+  </div>
+
+  <input id="search" placeholder="🔍 Поиск по коду, названию, ячейке" autocomplete="off" style="margin-bottom:6px">
+
+  <div id="list"></div>
+</div>
+
+<div class="bottom">
+  <div class="inner">
+    <button id="exportBtn">⬇️ Excel (CSV)</button>
+    <button id="shareBtn">📤 Отправить</button>
+  </div>
+</div>
+
+<!-- Редактирование позиции -->
+<dialog id="editDlg">
+  <h3>Позиция</h3>
+  <div class="field"><label>Штрихкод</label><input id="eCode" readonly></div>
+  <div class="field"><label>Название товара</label><input id="eName" placeholder="Необязательно"></div>
+  <div class="field"><label>Ячейка</label><input id="eLoc"></div>
+  <div class="field"><label>Количество</label><input id="eQty" type="number" inputmode="numeric" min="0"></div>
+  <div class="actions">
+    <button class="danger" id="eDel">Удалить</button>
+    <button id="eCancel">Отмена</button>
+    <button class="primary" id="eSave">Сохранить</button>
+  </div>
+</dialog>
+
+<!-- Ввод количества при скане -->
+<dialog id="qtyDlg">
+  <h3 id="qTitle">Количество</h3>
+  <div class="hint" id="qCode" style="margin-bottom:10px"></div>
+  <div class="field"><label>Сколько штук добавить</label><input id="qQty" type="number" inputmode="numeric" min="1" value="1"></div>
+  <div class="actions">
+    <button id="qCancel">Отмена</button>
+    <button class="primary" id="qOk">Добавить</button>
+  </div>
+</dialog>
+
+<!-- Меню -->
+<dialog id="menuDlg">
+  <h3>Меню</h3>
+  <div class="menu">
+    <button id="mCatalog">📋 Загрузить справочник товаров (CSV)</button>
+    <button id="mImport">📥 Продолжить инвентаризацию из CSV</button>
+    <button class="danger" id="mNew">🗑 Начать новую инвентаризацию</button>
+  </div>
+  <div class="hint" id="catInfo"></div>
+  <div class="hint">Справочник — CSV-файл из двух колонок: <b>штрихкод;название</b>. Тогда при скане сразу будет видно название товара.</div>
+  <div class="actions"><button id="mClose">Закрыть</button></div>
+</dialog>
+
+<input type="file" id="catFile" accept=".csv,text/csv,text/plain" hidden>
+<input type="file" id="impFile" accept=".csv,text/csv,text/plain" hidden>
+
+<script src="vendor/html5-qrcode.min.js"></script>
+<script>
+(() => {
+  const KEY = 'sklad.v1';
+  const $ = id => document.getElementById(id);
+
+  // ---------- Хранилище ----------
+  // items: { "<ячейка>\u0000<код>": { code, loc, qty, name, t } }
+  let state = { items: {}, catalog: {}, location: '', askQty: false, sound: true };
+  try {
+    const saved = JSON.parse(localStorage.getItem(KEY));
+    if (saved) state = Object.assign(state, saved);
+  } catch (e) {}
+  const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+
+  const keyOf = (loc, code) => loc + '\u0000' + code;
+  const nameOf = code => state.catalog[code] || '';
+
+  $('location').value = state.location;
+  $('askQty').checked = state.askQty;
+  $('sound').checked = state.sound;
+  $('location').addEventListener('input', e => { state.location = e.target.value.trim(); save(); });
+  $('askQty').addEventListener('change', e => { state.askQty = e.target.checked; save(); });
+  $('sound').addEventListener('change', e => { state.sound = e.target.checked; save(); });
+
+  // ---------- Звук и вибрация ----------
+  let audio;
+  function beep(ok = true) {
+    if (navigator.vibrate) navigator.vibrate(ok ? 60 : [80, 60, 80]);
+    if (!state.sound) return;
+    try {
+      audio = audio || new (window.AudioContext || window.webkitAudioContext)();
+      const o = audio.createOscillator(), g = audio.createGain();
+      o.frequency.value = ok ? 1500 : 400;
+      g.gain.value = 0.15;
+      o.connect(g); g.connect(audio.destination);
+      o.start(); o.stop(audio.currentTime + (ok ? 0.09 : 0.25));
+    } catch (e) {}
+  }
+
+  // ---------- Добавление ----------
+  let lastKey = null;
+  function addCode(code, qty = 1) {
+    code = String(code).trim();
+    if (!code) return;
+    const loc = state.location || 'Без ячейки';
+    const k = keyOf(loc, code);
+    const it = state.items[k] || { code, loc, qty: 0, name: nameOf(code) };
+    it.qty += qty;
+    it.t = Date.now();
+    if (!it.name) it.name = nameOf(code);
+    state.items[k] = it;
+    lastKey = k;
+    save();
+    beep(true);
+    showLast(it, qty);
+    render();
+  }
+
+  function handleCode(code) {
+    if (state.askQty) {
+      pauseScanner();
+      $('qTitle').textContent = nameOf(code) || 'Количество';
+      $('qCode').textContent = code;
+      $('qQty').value = 1;
+      $('qtyDlg').dataset.code = code;
+      $('qtyDlg').showModal();
+      setTimeout(() => $('qQty').select(), 50);
+    } else {
+      addCode(code, 1);
+    }
+  }
+
+  $('qOk').addEventListener('click', () => {
+    const n = parseInt($('qQty').value, 10);
+    if (n > 0) addCode($('qtyDlg').dataset.code, n);
+    $('qtyDlg').close();
+  });
+  $('qQty').addEventListener('keydown', e => { if (e.key === 'Enter') $('qOk').click(); });
+  $('qCancel').addEventListener('click', () => $('qtyDlg').close());
+  $('qtyDlg').addEventListener('close', resumeScanner);
+
+  function showLast(it, qty) {
+    const el = $('last');
+    el.className = 'last on flash';
+    el.innerHTML = '';
+    const b = document.createElement('b');
+    b.textContent = '✅ +' + qty + '  ' + (it.name || it.code);
+    const s = document.createElement('div');
+    s.className = 'hint';
+    s.textContent = it.code + ' · ' + it.loc + ' · всего ' + it.qty + ' шт.';
+    el.append(b, s);
+    clearTimeout(showLast.t);
+    showLast.t = setTimeout(() => el.classList.remove('flash'), 600);
+  }
+
+  // Ручной ввод (и ручные Bluetooth/USB сканеры, которые «печатают» код + Enter)
+  const submitManual = () => {
+    const v = $('manual').value.trim();
+    if (!v) return;
+    $('manual').value = '';
+    handleCode(v);
+    $('manual').focus();
+  };
+  $('manual').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submitManual(); } });
+  $('addManual').addEventListener('click', submitManual);
+
+  // ---------- Камера ----------
+  let scanner = null, scanning = false, paused = false, locMode = false;
+  let lastCode = '', lastTime = 0;
+
+  function onDecoded(text) {
+    if (paused) return;
+    const now = Date.now();
+    // защита от повторного считывания одного и того же кода подряд
+    if (text === lastCode && now - lastTime < 1500) return;
+    lastCode = text; lastTime = now;
+    if (locMode) {
+      state.location = text.trim();
+      $('location').value = state.location;
+      save();
+      setLocMode(false);
+      beep(true);
+      return;
+    }
+    handleCode(text);
+  }
+
+  function setLocMode(on) {
+    locMode = on;
+    $('locScanBtn').classList.toggle('primary', on);
+    $('locScanBtn').textContent = on ? 'Наведите на код ячейки…' : 'Скан ячейки';
+  }
+
+  async function startScanner() {
+    if (typeof Html5Qrcode === 'undefined') {
+      alert('Не удалось загрузить модуль сканера. Проверьте интернет и обновите страницу. Пока можно вводить коды вручную.');
+      return;
+    }
+    $('scanBox').classList.add('on');
+    $('scanBtn').style.display = 'none';
+    try {
+      const F = Html5QrcodeSupportedFormats;
+      scanner = scanner || new Html5Qrcode('reader', {
+        formatsToSupport: [
+          F.EAN_13, F.EAN_8, F.UPC_A, F.UPC_E, F.CODE_128, F.CODE_39, F.CODE_93,
+          F.ITF, F.CODABAR, F.QR_CODE, F.DATA_MATRIX
+        ],
+        experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+        verbose: false
+      });
+      await scanner.start(
+        { facingMode: 'environment' },
+        { fps: 12, qrbox: (w, h) => ({ width: Math.floor(w * 0.85), height: Math.floor(Math.min(h * 0.6, w * 0.5)) }) },
+        onDecoded,
+        () => {}
+      );
+      scanning = true;
+    } catch (e) {
+      stopScanner();
+      alert('Нет доступа к камере. Разрешите доступ к камере в настройках браузера (сайт должен открываться по https).\n\n' + (e && e.message ? e.message : e));
+    }
+  }
+
+  async function stopScanner() {
+    setLocMode(false);
+    if (scanner && scanning) { try { await scanner.stop(); } catch (e) {} }
+    scanning = false;
+    $('scanBox').classList.remove('on');
+    $('scanBtn').style.display = '';
+  }
+
+  function pauseScanner() { paused = true; }
+  function resumeScanner() { paused = false; lastTime = Date.now(); }
+
+  $('scanBtn').addEventListener('click', startScanner);
+  $('stopBtn').addEventListener('click', stopScanner);
+  $('locScanBtn').addEventListener('click', () => setLocMode(!locMode));
+
+  // ---------- Список ----------
+  function render() {
+    const q = $('search').value.trim().toLowerCase();
+    const all = Object.values(state.items);
+    const list = all.filter(it => !q ||
+      it.code.toLowerCase().includes(q) ||
+      (it.name || '').toLowerCase().includes(q) ||
+      it.loc.toLowerCase().includes(q));
+
+    $('sPos').textContent = new Set(all.map(i => i.code)).size;
+    $('sQty').textContent = all.reduce((s, i) => s + i.qty, 0);
+    $('sLoc').textContent = new Set(all.map(i => i.loc)).size;
+
+    const box = $('list');
+    box.innerHTML = '';
+    if (!list.length) {
+      box.innerHTML = '<div class="empty">' + (all.length ? 'Ничего не найдено' : 'Пока ничего не отсканировано.<br>Нажмите «Сканировать камерой» или введите код вручную.') + '</div>';
+      return;
+    }
+    const groups = {};
+    list.forEach(it => (groups[it.loc] = groups[it.loc] || []).push(it));
+    Object.keys(groups).sort((a, b) => a.localeCompare(b, 'ru', { numeric: true })).forEach(loc => {
+      const items = groups[loc].sort((a, b) => b.t - a.t);
+      const h = document.createElement('div');
+      h.className = 'loc-title';
+      h.textContent = loc + ' — ' + items.reduce((s, i) => s + i.qty, 0) + ' шт.';
+      box.appendChild(h);
+      items.forEach(it => {
+        const k = keyOf(it.loc, it.code);
+        const row = document.createElement('div');
+        row.className = 'item' + (k === lastKey ? ' hl' : '');
+        row.innerHTML =
+          '<div class="info"><div class="name"></div><div class="code"></div></div>' +
+          '<div class="qty"><button data-d="-1">−</button><b></b><button data-d="1">+</button></div>';
+        row.querySelector('.name').textContent = it.name || 'Без названия';
+        row.querySelector('.code').textContent = it.code;
+        row.querySelector('b').textContent = it.qty;
+        row.querySelector('.info').addEventListener('click', () => openEdit(k));
+        row.querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+          it.qty = Math.max(0, it.qty + Number(b.dataset.d));
+          it.t = Date.now();
+          lastKey = k;
+          save(); render();
+        }));
+        box.appendChild(row);
+      });
+    });
+  }
+  $('search').addEventListener('input', render);
+
+  // ---------- Редактирование ----------
+  let editKey = null;
+  function openEdit(k) {
+    const it = state.items[k];
+    if (!it) return;
+    editKey = k;
+    $('eCode').value = it.code;
+    $('eName').value = it.name || '';
+    $('eLoc').value = it.loc;
+    $('eQty').value = it.qty;
+    $('editDlg').showModal();
+  }
+  $('eCancel').addEventListener('click', () => $('editDlg').close());
+  $('eDel').addEventListener('click', () => {
+    if (confirm('Удалить позицию?')) { delete state.items[editKey]; save(); render(); $('editDlg').close(); }
+  });
+  $('eSave').addEventListener('click', () => {
+    const it = state.items[editKey];
+    const loc = $('eLoc').value.trim() || 'Без ячейки';
+    const qty = Math.max(0, parseInt($('eQty').value, 10) || 0);
+    const name = $('eName').value.trim();
+    delete state.items[editKey];
+    const nk = keyOf(loc, it.code);
+    const target = state.items[nk];
+    if (target) { target.qty += qty; if (name) target.name = name; target.t = Date.now(); }
+    else state.items[nk] = Object.assign(it, { loc, qty, name, t: Date.now() });
+    // запоминаем название в справочнике, чтобы оно подставлялось при следующих сканах
+    if (name) {
+      state.catalog[it.code] = name;
+      Object.values(state.items).forEach(x => { if (x.code === it.code && !x.name) x.name = name; });
+    }
+    lastKey = nk;
+    save(); render();
+    $('editDlg').close();
+  });
+
+  // ---------- CSV ----------
+  const csvCell = v => {
+    v = String(v ?? '');
+    return /[";\n\r]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  };
+  function buildCsv() {
+    const rows = [['Ячейка', 'Штрихкод', 'Название', 'Количество', 'Время']];
+    Object.values(state.items)
+      .sort((a, b) => a.loc.localeCompare(b.loc, 'ru', { numeric: true }) || a.code.localeCompare(b.code))
+      .forEach(it => rows.push([it.loc, it.code, it.name || '', it.qty, new Date(it.t).toLocaleString('ru-RU')]));
+    // BOM + «;» — чтобы Excel сразу правильно открыл русский текст по колонкам
+    return '﻿' + rows.map(r => r.map(csvCell).join(';')).join('\r\n');
+  }
+  const fileName = () => 'inventarizaciya_' + new Date().toISOString().slice(0, 16).replace(/[T:]/g, '-') + '.csv';
+
+  function parseCsv(text) {
+    text = text.replace(/^﻿/, '');
+    const sep = (text.split(/\r?\n/)[0].match(/;/g) || []).length >= (text.split(/\r?\n/)[0].match(/,/g) || []).length ? ';' : ',';
+    const rows = []; let row = [], cell = '', inQ = false;
+    for (let i = 0; i < text.length; i++) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+        else cell += c;
+      } else if (c === '"') inQ = true;
+      else if (c === sep) { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (cell || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => r.some(x => x.trim()));
+  }
+
+  $('exportBtn').addEventListener('click', () => {
+    if (!Object.keys(state.items).length) return alert('Список пуст.');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([buildCsv()], { type: 'text/csv;charset=utf-8' }));
+    a.download = fileName();
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+
+  $('shareBtn').addEventListener('click', async () => {
+    if (!Object.keys(state.items).length) return alert('Список пуст.');
+    const file = new File([buildCsv()], fileName(), { type: 'text/csv' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({ files: [file], title: 'Инвентаризация' });
+        return;
+      }
+    } catch (e) { if (e.name === 'AbortError') return; }
+    const text = Object.values(state.items).map(i => `${i.loc} | ${i.code} | ${i.name || ''} | ${i.qty} шт.`).join('\n');
+    try { await navigator.share({ title: 'Инвентаризация', text }); }
+    catch (e) {
+      if (e.name === 'AbortError') return;
+      try { await navigator.clipboard.writeText(text); alert('Список скопирован в буфер обмена.'); }
+      catch (e2) { alert('Отправка не поддерживается — используйте кнопку «Excel (CSV)».'); }
+    }
+  });
+
+  // ---------- Меню ----------
+  const updCatInfo = () => { $('catInfo').textContent = 'В справочнике товаров: ' + Object.keys(state.catalog).length; };
+  $('menuBtn').addEventListener('click', () => { updCatInfo(); $('menuDlg').showModal(); });
+  $('mClose').addEventListener('click', () => $('menuDlg').close());
+  $('mNew').addEventListener('click', () => {
+    if (!confirm('Удалить все отсканированные позиции и начать заново? Справочник товаров сохранится.')) return;
+    state.items = {}; lastKey = null; save(); render(); $('menuDlg').close();
+  });
+  $('mCatalog').addEventListener('click', () => $('catFile').click());
+  $('mImport').addEventListener('click', () => $('impFile').click());
+
+  $('catFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    let n = 0;
+    parseCsv(await f.text()).forEach(r => {
+      const code = (r[0] || '').trim(), name = (r[1] || '').trim();
+      if (code && name && !/^штрих/i.test(code)) { state.catalog[code] = name; n++; }
+    });
+    Object.values(state.items).forEach(it => { if (!it.name && state.catalog[it.code]) it.name = state.catalog[it.code]; });
+    save(); render(); updCatInfo();
+    alert('Загружено товаров: ' + n);
+  });
+
+  // Импорт ранее выгруженного файла (Ячейка;Штрихкод;Название;Количество)
+  $('impFile').addEventListener('change', async e => {
+    const f = e.target.files[0]; e.target.value = '';
+    if (!f) return;
+    let n = 0;
+    parseCsv(await f.text()).forEach(r => {
+      const loc = (r[0] || '').trim() || 'Без ячейки', code = (r[1] || '').trim();
+      const qty = parseInt(r[3], 10);
+      if (!code || isNaN(qty) || /^штрих/i.test(code)) return;
+      const k = keyOf(loc, code);
+      const it = state.items[k] || { code, loc, qty: 0, name: (r[2] || '').trim() || nameOf(code) };
+      it.qty += qty; it.t = Date.now();
+      state.items[k] = it; n++;
+    });
+    save(); render(); $('menuDlg').close();
+    alert('Импортировано строк: ' + n);
+  });
+
+  document.addEventListener('visibilitychange', () => { if (document.hidden && scanning) stopScanner(); });
+
+  render();
+})();
+</script>
+</body>
+</html>
