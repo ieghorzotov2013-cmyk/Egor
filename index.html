@@ -58,7 +58,7 @@
   </header>
 
   <section>
-    <h2>Обо мне</h2>
+    <h2 id="about-title">Обо мне</h2>
     <p id="about"></p>
   </section>
 
@@ -72,7 +72,7 @@
     <div id="contacts"></div>
   </section>
 
-  <footer>Сайт Егора · обновляется с телефона</footer>
+  <footer id="footer">Сайт Егора · обновляется с телефона</footer>
 </div>
 
 <script>
@@ -83,6 +83,8 @@ fetch('content.json?v=' + Date.now())
     document.getElementById('title').textContent = c['заголовок'] || '';
     document.getElementById('subtitle').textContent = c['подзаголовок'] || '';
     document.getElementById('about').textContent = c['о_себе'] || '';
+    if (c['раздел_о_себе']) document.getElementById('about-title').textContent = c['раздел_о_себе'];
+    if (c['подвал']) document.getElementById('footer').textContent = c['подвал'];
 
     const news = document.getElementById('news');
     (c['новости'] || []).forEach(n => {
